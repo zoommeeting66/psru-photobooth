@@ -22,10 +22,6 @@ services:
     dockerContext: ./backend
     plan: free
     healthCheckPath: /api/v1/health
-    disk:
-      name: data
-      mountPath: /app/data
-      sizeGB: 1
     envVars:
       - key: DATABASE_URL
         fromDatabase:
