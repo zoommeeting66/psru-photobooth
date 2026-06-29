@@ -13,8 +13,18 @@ class Settings(BaseSettings):
     env: str = "dev"
 
     database_url: str = "sqlite+aiosqlite:///./data/photobooth.db"
-    storage_dir: str = "./data/storage"
     public_base_url: str = "http://localhost:8000"
+
+    # Storage: "local" filesystem (dev/single-instance) or "s3" (S3 / Cloudflare R2 / MinIO)
+    storage_backend: str = "local"
+    storage_dir: str = "./data/storage"
+    s3_bucket: str = ""
+    s3_endpoint_url: str = ""        # set for R2/MinIO; leave empty for AWS S3
+    s3_region: str = "auto"
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_public_base_url: str = ""     # public-read bucket/CDN base; empty → presigned URLs
+    s3_signed_url_ttl: int = 1800    # seconds
 
     # Dev auth (HS256) — used when OIDC is not configured, and for /auth/dev-token
     jwt_secret: str = "dev-insecure-secret-change-me"

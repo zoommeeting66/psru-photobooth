@@ -16,6 +16,7 @@ from .config import get_settings
 from .db import init_db
 from .routers import admin, auth, health, jobs, outputs, scenes, sessions, stats, ws
 from .seed import seed
+from . import storage
 from .storage import storage_root
 
 settings = get_settings()
@@ -53,8 +54,9 @@ app.include_router(outputs.router, prefix=API)
 app.include_router(stats.router, prefix=API)
 app.include_router(ws.router, prefix=API)
 
-# Serve stored files (dev only; prod uses CDN + signed URLs)
-app.mount("/files", StaticFiles(directory=storage_root()), name="files")
+# Serve stored files for the local backend (s3 backend returns CDN/presigned URLs)
+if storage.is_local():
+    app.mount("/files", StaticFiles(directory=storage_root()), name="files")
 
 
 @app.get("/")

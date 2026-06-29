@@ -21,7 +21,21 @@ from .config import get_settings
 
 settings = get_settings()
 
-engine = create_async_engine(settings.database_url, echo=False, future=True)
+
+def _normalize_db_url(url: str) -> str:
+    """Accept Render/Heroku-style URLs and map to the async driver.
+
+    `postgres://` / `postgresql://` → `postgresql+asyncpg://` so managed
+    providers' connection strings work without manual editing.
+    """
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://") :]
+    if url.startswith("postgresql://"):
+        url = "postgresql+asyncpg://" + url[len("postgresql://") :]
+    return url
+
+
+engine = create_async_engine(_normalize_db_url(settings.database_url), echo=False, future=True)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 

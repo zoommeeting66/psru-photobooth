@@ -78,9 +78,14 @@ OIDC_ISSUER: http://localhost:8080/realms/psru
 1. **ฐานข้อมูล** — สร้าง PostgreSQL แบบ managed (Neon / Supabase / Railway) → ได้ `DATABASE_URL`
    (เปลี่ยน prefix เป็น `postgresql+asyncpg://...`)
 2. **Object Storage** *(แนะนำสำหรับหลาย instance)* — S3 / Cloudflare R2 / MinIO
-   *(หมายเหตุ: `storage.py` ปัจจุบันเป็น local FS — ถ้า deploy หลาย instance ให้เปลี่ยนเป็น S3 ก่อน, เป็น Phase 2 item; instance เดียวใช้ volume ได้)*
+   `storage.py` รองรับ S3 แล้ว → ตั้ง env: `STORAGE_BACKEND=s3`, `S3_BUCKET`, `S3_ENDPOINT_URL` (R2/MinIO),
+   `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` · ใส่ `S3_PUBLIC_BASE_URL` ถ้า bucket/CDN เปิด public,
+   ไม่งั้นระบบจะคืน **presigned URL** ที่มีอายุให้เอง · instance เดียวจะใช้ local volume ก็ได้
 3. **Backend (API)** — deploy ด้วย Docker (`./backend/Dockerfile`) ขึ้น **Render / Railway / Fly.io / VM**
    ตั้ง env: `DATABASE_URL`, `PUBLIC_BASE_URL=https://api-booth...`, `JWT_SECRET`, (ถ้าใช้ OIDC) `OIDC_ISSUER`
+   - **ทางลัด Render (กดเดียว):** มี [`render.yaml`](render.yaml) ให้แล้ว → New + → **Blueprint** → เลือก repo นี้
+     จะสร้าง **API + Postgres + disk** ให้อัตโนมัติ (หลัง deploy ครั้งแรก ใส่ค่า `PUBLIC_BASE_URL` = URL ของ service)
+   - แอปรองรับ connection string แบบ `postgres://…` ของ managed DB ได้เลย (แปลงเป็น asyncpg ให้อัตโนมัติ)
 4. **Keycloak** *(ถ้าใช้ OIDC)* — deploy แยก หรือใช้ Keycloak managed → import `backend/keycloak/realm-export.json`
    ตั้ง `KC_HOSTNAME` ให้ตรงโดเมนจริง
 5. **Frontend** — 2 ทางเลือก:
