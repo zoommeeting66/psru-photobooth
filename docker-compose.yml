@@ -1,0 +1,61 @@
+# Full stack — one command brings up the whole system:
+#   docker compose up --build
+# Then open http://localhost:3000  (API: http://localhost:8000/docs)
+#
+# Auth runs in dev mode by default (login card issues dev-tokens). To enforce
+# real Keycloak OIDC, start the keycloak service and set OIDC_ISSUER on `api`
+# (see SETUP.md). The mock AI pipeline produces real branded images (no GPU).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: psru
+      POSTGRES_PASSWORD: psru
+      POSTGRES_DB: photobooth
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U psru"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+
+  # Optional identity provider — enable for real OIDC (see SETUP.md §Level 1).
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    volumes: ["./backend/keycloak:/opt/keycloak/data/import:ro"]
+    ports: ["8080:8080"]
+    profiles: ["auth"]   # only starts with: docker compose --profile auth up
+
+  api:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://psru:psru@db:5432/photobooth
+      STORAGE_DIR: /app/data/storage
+      PUBLIC_BASE_URL: http://localhost:8000
+      PIPELINE_MOCK: "true"
+      AUTH_DEV_MODE: "true"
+      # Enforce real Keycloak instead of dev tokens (requires --profile auth):
+      # OIDC_ISSUER: http://localhost:8080/realms/psru
+    ports: ["8000:8000"]
+    volumes: ["./data:/app/data"]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE: http://localhost:8000
+    depends_on: ["api"]
+    ports: ["3000:3000"]
+
+volumes:
+  pgdata:

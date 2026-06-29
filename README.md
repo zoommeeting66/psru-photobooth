@@ -39,6 +39,7 @@
 | 17 | KPI และตัวชี้วัดความสำเร็จ | [`docs/10-roadmap-kpi-maintenance.md`](docs/10-roadmap-kpi-maintenance.md) |
 | 18 | แผนบำรุงรักษา/ขยายระบบ | [`docs/10-roadmap-kpi-maintenance.md`](docs/10-roadmap-kpi-maintenance.md) |
 
+> 🚀 **ติดตั้งระบบตามลำดับ (พร้อมใช้งานจริง):** ดู [`SETUP.md`](SETUP.md) — หรือสั่งครั้งเดียว `docker compose up --build`
 > 📖 **วิธีใช้งานหน้าจอแบบละเอียด (ทุกหน้าจอ + ขั้นตอน):** ดู [`USAGE.md`](USAGE.md)
 
 ## เริ่มต้นใช้งานต้นแบบ (Prototype)
