@@ -1,5 +1,7 @@
 # PSRU AI Virtual Photo Booth & VR Studio
 
+[![CI](https://github.com/zoommeeting66/psru-photobooth/actions/workflows/ci.yml/badge.svg)](https://github.com/zoommeeting66/psru-photobooth/actions/workflows/ci.yml)
+
 ระบบถ่ายภาพเสมือนอัจฉริยะด้วย AI และฉากเสมือน (Virtual Reality) สำหรับมหาวิทยาลัยราชภัฏพิบูลสงคราม
 
 > **แนวคิด:** "เพียงยืนหน้ากล้อง AI จะสร้างภาพระดับสตูดิโอในโลกเสมือนภายในไม่กี่วินาที — โดยไม่ต้องใช้ Green Screen"
