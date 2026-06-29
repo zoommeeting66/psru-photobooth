@@ -39,7 +39,8 @@ def _gradient(w: int, h: int) -> Image.Image:
     return Image.composite(top, base, mask)
 
 
-def compose_final(
+def apply_branding(
+    base_png: bytes,
     *,
     scene_name: str,
     event_title: str,
@@ -47,22 +48,16 @@ def compose_final(
     outfit_name: str | None,
     share_url: str,
     show_qr: bool = True,
-    width: int = 1200,
-    height: int = 900,
 ) -> tuple[bytes, bytes]:
-    """Return (final_png_bytes, thumb_png_bytes)."""
-    img = _gradient(width, height)
-    d = ImageDraw.Draw(img, "RGBA")
+    """Overlay PSRU branding onto an AI-composited base image.
 
-    # subject placeholder
+    `base_png` is the scene+subject image produced by an AI backend (app/ai/*).
+    Returns (final_png_bytes, thumb_png_bytes).
+    """
+    img = Image.open(io.BytesIO(base_png)).convert("RGB")
+    width, height = img.size
+    d = ImageDraw.Draw(img, "RGBA")
     cx, cy = width // 2, int(height * 0.46)
-    d.ellipse([cx - 70, cy - 130, cx + 70, cy - 10], fill=(255, 255, 255, 40))
-    d.ellipse([cx - 110, cy + 0, cx + 110, cy + 220], fill=(255, 255, 255, 30))
-    # NOTE: the default PIL font (DejaVuSans) has no Thai glyphs, so static text
-    # here is kept in Latin. Phase 2 bundles a Thai font (Sarabun) so dynamic
-    # Thai text (e.g. scene/event names) renders correctly in the output image.
-    d.text((cx, cy + 250), "Studio-grade result (Phase 1 mock)",
-           font=_font(26), fill=WHITE, anchor="mm")
 
     # top branding bar
     d.rectangle([0, 0, width, 70], fill=(6, 61, 38, 180))

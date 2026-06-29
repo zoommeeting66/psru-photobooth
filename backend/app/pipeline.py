@@ -1,10 +1,10 @@
-"""AI Orchestrator — runs a render job through the pipeline DAG.
+"""AI Orchestrator — runs a render job through the pipeline.
 
-Phase 1 (`PIPELINE_MOCK=true`) simulates the GPU stages with short delays and
-produces a real branded image via the Branding Engine, so the end-to-end flow
-(capture → render → output → QR) works without a GPU. Phase 2 swaps the mock
-stage functions for real model calls (SAM2 / SDXL+ControlNet / IC-Light /
-IP-Adapter) served by Triton — the orchestration here stays the same.
+Stages run on the selected AI backend (`app/ai/`): ``mock`` (default, no GPU),
+``cv`` (OpenCV/CPU segmentation + compositing), or ``triton`` (real SAM2 /
+SDXL+ControlNet / IC-Light / IP-Adapter on a GPU host). The backend produces the
+composited scene+subject image; the Branding Engine then overlays PSRU branding.
+Per-stage progress is published to the WebSocket hub regardless of backend.
 """
 from __future__ import annotations
 
@@ -13,10 +13,13 @@ import secrets
 from datetime import timedelta
 
 from . import branding, storage
+from .ai import STAGES as AI_STAGES, get_backend
+from .ai.base import RenderRequest
 from .config import get_settings
 from .events import hub
 from .db import SessionLocal, new_uuid, utcnow
 from .models import (
+    AIPrompt,
     BrandingTemplate,
     Capture,
     Event,
@@ -29,17 +32,8 @@ from .models import (
 
 settings = get_settings()
 
-# Ordered pipeline stages (mirrors docs/04-ai-workflow.md)
-STAGES = [
-    ("segmentation", "Segmentation (SAM 2)", False),
-    ("face_pose", "Face & Pose", True),  # requires biometric consent
-    ("scene_generate", "Scene Generate (SDXL)", False),
-    ("relight", "Relighting (IC-Light)", False),
-    ("perspective", "Perspective Match", False),
-    ("beauty", "Beauty Enhance", False),
-    ("outfit", "AI Outfit", False),
-    ("branding", "Branding Engine", False),
-]
+# Display stages = AI stages + the Branding Engine (for progress reporting)
+STAGES = list(AI_STAGES) + [("branding", "Branding Engine", False)]
 
 
 class GuardrailError(Exception):
@@ -66,9 +60,12 @@ def check_guardrails(scene: Scene, fx: dict) -> None:
 
 
 async def run_render_job(job_id: str, biometric_ok: bool = False) -> None:
-    """Background task: advance a job to completion and create its Output."""
-    delay = settings.pipeline_stage_delay_ms / 1000.0
+    """Background/worker task: advance a job to completion and create its Output."""
+    backend = get_backend()
+    is_mock = backend.name == "mock"
+    delay = (settings.pipeline_stage_delay_ms / 1000.0) if is_mock else 0.0
     started = utcnow()
+    total = len(STAGES)
 
     async with SessionLocal() as db:
         job = await db.get(RenderJob, job_id)
@@ -77,21 +74,27 @@ async def run_render_job(job_id: str, biometric_ok: bool = False) -> None:
         capture = await db.get(Capture, job.capture_id)
         scene = await db.get(Scene, job.scene_id) if job.scene_id else None
         outfit = await db.get(Outfit, job.outfit_id) if job.outfit_id else None
+        prompt = (
+            await db.get(AIPrompt, scene.ai_prompt_id)
+            if scene and scene.ai_prompt_id
+            else None
+        )
 
         try:
             if scene is not None:
                 check_guardrails(scene, job.fx or {})
 
             job.status = "running"
-            job.gpu_node = "mock-gpu-0" if settings.pipeline_mock else "gpu-0"
+            job.gpu_node = backend.gpu_node
             steps: dict = {}
 
-            total = len(STAGES)
-            for i, (key, label, needs_bio) in enumerate(STAGES, start=1):
+            # 1) AI stages — progress markers (real heavy work happens in 2)
+            for i, (key, label, needs_bio) in enumerate(AI_STAGES, start=1):
                 if needs_bio and not biometric_ok:
                     steps[key] = {"status": "skipped", "reason": "no_biometric_consent"}
                 else:
-                    await asyncio.sleep(delay)
+                    if delay:
+                        await asyncio.sleep(delay)
                     steps[key] = {"status": "done"}
                 job.stage = label
                 job.progress = int(i / total * 100)
@@ -99,7 +102,19 @@ async def run_render_job(job_id: str, biometric_ok: bool = False) -> None:
                 await db.commit()
                 hub.publish(job.id, _snapshot(job))
 
-            # ---- produce the output via the Branding Engine ----
+            # 2) run the backend (off the event loop — may be CPU/GPU heavy)
+            req = RenderRequest(
+                capture_bytes=storage.read_bytes(capture.storage_key) if capture else b"",
+                scene_name=scene.name if scene else "PSRU",
+                scene_prompt=prompt.positive_prompt if prompt else None,
+                scene_asset_key=scene.thumbnail_key if scene else None,
+                outfit_name=outfit.name if outfit else None,
+                fx=job.fx or {},
+                biometric_ok=biometric_ok,
+            )
+            base_png = await asyncio.to_thread(backend.render, req)
+
+            # 3) Branding Engine overlay
             session = await db.get(Session, capture.session_id) if capture else None
             event = (
                 await db.get(Event, session.event_id)
@@ -118,7 +133,8 @@ async def run_render_job(job_id: str, biometric_ok: bool = False) -> None:
             share_token = secrets.token_urlsafe(12)
             share_url = f"{settings.public_base_url.rstrip('/')}/s/{share_token}"
 
-            final_bytes, thumb_bytes = branding.compose_final(
+            final_bytes, thumb_bytes = branding.apply_branding(
+                base_png,
                 scene_name=scene.name if scene else "PSRU",
                 event_title=event_title,
                 image_no=image_no,
@@ -133,7 +149,7 @@ async def run_render_job(job_id: str, biometric_ok: bool = False) -> None:
             storage.save_bytes(final_key, final_bytes)
             storage.save_bytes(thumb_key, thumb_bytes)
 
-            output = Output(
+            db.add(Output(
                 id=out_id,
                 render_job_id=job.id,
                 branding_id=job.branding_id,
@@ -143,12 +159,13 @@ async def run_render_job(job_id: str, biometric_ok: bool = False) -> None:
                 formats={"png": final_key},
                 share_token=share_token,
                 expires_at=utcnow() + timedelta(days=settings.output_ttl_days),
-            )
-            db.add(output)
+            ))
 
+            steps["branding"] = {"status": "done"}
             job.status = "succeeded"
             job.progress = 100
             job.stage = "completed"
+            job.pipeline_steps = dict(steps)
             job.duration_ms = int((utcnow() - started).total_seconds() * 1000)
             await db.commit()
             hub.publish(job.id, _snapshot(job, output_id=out_id))

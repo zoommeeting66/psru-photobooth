@@ -48,6 +48,15 @@ class Settings(BaseSettings):
     pipeline_mock: bool = True
     pipeline_stage_delay_ms: int = 400
 
+    # AI render backend: "mock" (no deps), "cv" (OpenCV/CPU segmentation+composite),
+    # or "triton" (real models via NVIDIA Triton — GPU host). See app/ai/.
+    ai_backend: str = "mock"
+    triton_url: str = "triton:8000"          # Triton HTTP endpoint
+    triton_seg_model: str = "sam2"
+    triton_scene_model: str = "sdxl_controlnet"
+    triton_relight_model: str = "ic_light"
+    triton_outfit_model: str = "ip_adapter"
+
     capture_ttl_hours: int = 24
     output_ttl_days: int = 30
     policy_version: str = "2026.1"

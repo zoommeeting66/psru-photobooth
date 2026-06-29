@@ -1,0 +1,10 @@
+# AI render backends — install on the render host only (NOT needed for the
+# default `mock` backend, dev, or CI). See app/ai/ and SETUP.md §Level 3.
+
+# CPU backend (AI_BACKEND=cv): real segmentation + compositing, no GPU
+opencv-python-headless==4.10.0.84
+numpy==2.1.3
+
+# GPU backend (AI_BACKEND=triton): plus a running NVIDIA Triton server with
+# SAM 2 / SDXL+ControlNet / IC-Light / IP-Adapter models loaded.
+tritonclient[http]==2.51.0

@@ -44,6 +44,9 @@ services:
       PUBLIC_BASE_URL: http://localhost:8000
       PIPELINE_MOCK: "true"
       AUTH_DEV_MODE: "true"
+      # AI render backend: mock (default) | cv (CPU seg+composite, needs
+      # requirements-ai.txt in the image) | triton (GPU). See docs/11.
+      AI_BACKEND: mock
       # Enforce real Keycloak instead of dev tokens (requires --profile auth):
       # OIDC_ISSUER: http://localhost:8080/realms/psru
     ports: ["8000:8000"]

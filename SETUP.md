@@ -105,13 +105,23 @@ OIDC_ISSUER: http://localhost:8080/realms/psru
 
 ## ระดับ 3 — Real AI Pipeline (Phase 2)
 
-เปลี่ยนจาก mock เป็นโมเดลจริง (อ้างอิง `docs/04-ai-workflow.md`, `docs/07-deployment-architecture.md`):
+มี **AI backend แบบ pluggable** แล้ว (`backend/app/ai/`) เลือกด้วย `AI_BACKEND` — ดูรายละเอียดเต็มที่ [`docs/11-phase2-ai-pipeline.md`](docs/11-phase2-ai-pipeline.md)
 
-1. จัดหา **GPU** (on-prem หรือ cloud) + ติดตั้ง **NVIDIA Triton Inference Server**
-2. โหลดโมเดล: **SAM 2** (segmentation), **SDXL + ControlNet** (scene), **IC-Light** (relighting), **IP-Adapter** (outfit)
-3. ใน `backend/app/pipeline.py` แทนฟังก์ชันแต่ละ stage (ตอนนี้เป็น `await asyncio.sleep`) ด้วยการเรียก Triton
-4. เปลี่ยน job queue: `BackgroundTasks` → **Redis + Celery** (มี redis ใน compose แล้ว) + เปลี่ยน WS hub → Redis pub/sub
-5. ย้าย storage → **S3/R2** + signed URL · เพิ่ม **autoscale GPU** (KEDA ตาม queue depth)
+```bash
+# (ก) CPU จริง — segmentation + composite (ไม่ต้องมี GPU)
+cd backend && pip install -r requirements-ai.txt
+AI_BACKEND=cv uvicorn app.main:app --reload
+
+# (ข) GPU จริง — โมเดลผ่าน Triton
+#   1) รัน Triton + โหลดโมเดล SAM2 / SDXL+ControlNet / IC-Light / IP-Adapter
+#   2) เติม tensor names ใน app/ai/triton.py
+AI_BACKEND=triton TRITON_URL=<host>:8000 uvicorn app.main:app
+```
+
+ขั้นต่อไปของ Phase 2:
+1. เปลี่ยน job queue: `BackgroundTasks` → **Redis + Celery** (redis มีใน compose แล้ว) + WS hub → Redis pub/sub
+2. ย้าย storage → **S3/R2** (`STORAGE_BACKEND=s3`, ทำแล้ว) · เพิ่ม **autoscale GPU** (KEDA ตาม queue depth)
+3. bundle ฟอนต์ไทยใน Branding Engine
 
 ---
 
