@@ -1,8 +1,15 @@
 # PSRU AI Virtual Photo Booth & VR Studio
 
 [![CI](https://github.com/zoommeeting66/psru-photobooth/actions/workflows/ci.yml/badge.svg)](https://github.com/zoommeeting66/psru-photobooth/actions/workflows/ci.yml)
+[![E2E](https://github.com/zoommeeting66/psru-photobooth/actions/workflows/e2e.yml/badge.svg)](https://github.com/zoommeeting66/psru-photobooth/actions/workflows/e2e.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-gold.svg)](LICENSE)
 
 ระบบถ่ายภาพเสมือนอัจฉริยะด้วย AI และฉากเสมือน (Virtual Reality) สำหรับมหาวิทยาลัยราชภัฏพิบูลสงคราม
+
+**Deploy:**
+[![Deploy to Render](https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white)](https://render.com/deploy?repo=https://github.com/zoommeeting66/psru-photobooth)
+[![Deploy with Vercel](https://img.shields.io/badge/Deploy_frontend-Vercel-000?logo=vercel)](https://vercel.com/new/clone?repository-url=https://github.com/zoommeeting66/psru-photobooth&root-directory=frontend&env=NEXT_PUBLIC_API_BASE)
+· หรือเครื่องเดียว: `docker compose up --build`
 
 > **แนวคิด:** "เพียงยืนหน้ากล้อง AI จะสร้างภาพระดับสตูดิโอในโลกเสมือนภายในไม่กี่วินาที — โดยไม่ต้องใช้ Green Screen"
 

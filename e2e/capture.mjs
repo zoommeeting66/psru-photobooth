@@ -4,15 +4,16 @@ import { mkdirSync } from "node:fs";
 
 const FE = "http://localhost:3000";
 const STATIC = "http://localhost:5500/index.html";
-const CHROME = "/opt/pw-browsers/chromium";
 const OUT = new URL("./shots/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
-const browser = await chromium.launch({
-  executablePath: CHROME,
+const launchOptions = {
   headless: true,
   args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--no-sandbox"],
-});
+};
+if (process.env.CHROME_BIN) launchOptions.executablePath = process.env.CHROME_BIN;
+
+const browser = await chromium.launch(launchOptions);
 const ctx = await browser.newContext({
   viewport: { width: 1366, height: 900 },
   permissions: ["camera"],

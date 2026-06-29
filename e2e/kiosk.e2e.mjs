@@ -7,9 +7,20 @@ import { chromium } from "playwright";
 import { mkdirSync } from "node:fs";
 
 const FE = process.env.FE_BASE || "http://localhost:3000";
-const CHROME = process.env.CHROME_BIN || "/opt/pw-browsers/chromium";
 const ART = new URL("./artifacts/", import.meta.url).pathname;
 mkdirSync(ART, { recursive: true });
+
+// Use a specific browser binary if CHROME_BIN is set (sandbox); otherwise use
+// Playwright's installed Chromium (CI: `npx playwright install chromium`).
+const launchOptions = {
+  headless: true,
+  args: [
+    "--use-fake-ui-for-media-stream",
+    "--use-fake-device-for-media-stream",
+    "--no-sandbox",
+  ],
+};
+if (process.env.CHROME_BIN) launchOptions.executablePath = process.env.CHROME_BIN;
 
 let failures = 0;
 function check(name, cond) {
@@ -17,15 +28,7 @@ function check(name, cond) {
   if (!cond) failures++;
 }
 
-const browser = await chromium.launch({
-  executablePath: CHROME,
-  headless: true,
-  args: [
-    "--use-fake-ui-for-media-stream",
-    "--use-fake-device-for-media-stream",
-    "--no-sandbox",
-  ],
-});
+const browser = await chromium.launch(launchOptions);
 const context = await browser.newContext({ permissions: ["camera"] });
 const page = await context.newPage();
 page.on("console", (m) => {
