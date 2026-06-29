@@ -319,9 +319,20 @@ const fxList=[['snow','หิมะ','fa-snowflake'],['rain','ฝน','fa-cloud-
 const PIPE=[['segmentation','Segmentation (SAM 2)'],['face_pose','Face & Pose'],['scene_generate','Scene Generate (SDXL)'],['relight','Relighting (IC-Light)'],['perspective','Perspective Match'],['beauty','Beauty Enhance'],['outfit','AI Outfit'],['branding','Branding Engine']];
 
 /* ---------------- API config ----------------
-   ตั้ง API_BASE ให้ชี้ไป backend (FastAPI). ค่าว่าง = โหมดสาธิต (mock) ล้วน.
-   ถ้าเชื่อม API ไม่ได้ ระบบจะ fallback กลับเป็น mock อัตโนมัติ */
-let API_BASE = 'http://localhost:8000';
+   ลำดับการเลือก API_BASE:
+     1) query string  ?api=https://your-api   (จำใน localStorage ให้อัตโนมัติ)
+     2) ค่าที่เคยตั้งไว้ (localStorage 'PSRU_API_BASE')
+     3) ค่า default ด้านล่าง
+   บน GitHub Pages เปิด  <pages-url>/?api=https://your-api  เพื่อใช้งานจริงได้เลย
+   โดยไม่ต้องแก้ไฟล์ · ถ้าเชื่อม API ไม่ได้จะ fallback เป็นโหมดสาธิต (mock) อัตโนมัติ
+   ตั้งค่าโหมดสาธิตกลับ: เปิด  <pages-url>/?api=  (ค่าว่าง) */
+const DEFAULT_API_BASE = 'http://localhost:8000';
+const _qsApi = new URLSearchParams(location.search).get('api');
+if (_qsApi !== null) {
+  try { _qsApi ? localStorage.setItem('PSRU_API_BASE', _qsApi) : localStorage.removeItem('PSRU_API_BASE'); } catch(e){}
+}
+let API_BASE = DEFAULT_API_BASE;
+try { API_BASE = _qsApi || localStorage.getItem('PSRU_API_BASE') || DEFAULT_API_BASE; } catch(e){ API_BASE = _qsApi || DEFAULT_API_BASE; }
 let LIVE = false;
 const ST = { session:null, capture:null, job:null, output:null, sceneId:null };
 let apiScenes=null, apiOutfits=null, sceneList=null;
